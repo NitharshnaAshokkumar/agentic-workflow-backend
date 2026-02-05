@@ -1,0 +1,78 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  steps       Step[]
+  executions  Execution[]
+}
+
+model Step {
+  id          String   @id @default(uuid())
+  workflowId  String
+  order       Int
+  name        String
+  model       String
+  prompt      String
+  
+  criteriaType String
+  criteriaValue String?
+  
+  contextMode String @default("full")
+  maxRetries  Int @default(3)
+  
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  executions  StepExecution[]
+  
+  @@unique([workflowId, order])
+}
+
+model Execution {
+  id          String   @id @default(uuid())
+  workflowId  String
+  status      String
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  totalCost   Float    @default(0)
+  
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stepExecutions StepExecution[]
+}
+
+model StepExecution {
+  id          String   @id @default(uuid())
+  executionId String
+  stepId      String
+  order       Int
+  
+  status      String
+  prompt      String
+  response    String?
+  
+  attempts    Int      @default(0)
+  passed      Boolean  @default(false)
+
+  criteriaPassed Boolean @default(false)
+  criteriaReason String?
+  
+  tokensUsed  Int?
+  cost        Float?
+  
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  error       String?
+  
+  execution   Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  step        Step      @relation(fields: [stepId], references: [id], onDelete: Cascade)
+}
